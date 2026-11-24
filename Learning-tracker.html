@@ -1,0 +1,2346 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Belajar Saya — Learning Progress Tracker</title>
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              indigo: '#6366F1',
+              emerald: '#10B981',
+              amber: '#F59E0B',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Pengaturan dasar font dan pencegahan scroll horizontal */
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+    }
+
+    /* Transisi halus pada progress bar */
+    .progress-fill {
+      transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* Efek sorotan saat tombol 'Lanjutkan' atau 'Set Timer' diklik */
+    @keyframes timerHighlight {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.65); border-color: #10B981; }
+      50% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); border-color: #10B981; }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+    .highlight-pulse {
+      animation: timerHighlight 1.4s ease-out 2;
+    }
+
+    /* Custom Scrollbar minimalis */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.35);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.55);
+    }
+
+    /* Animasi masuk Toast */
+    @keyframes slideUpFade {
+      from { opacity: 0; transform: translateY(14px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .toast-enter {
+      animation: slideUpFade 0.25s ease-out forwards;
+    }
+  </style>
+</head>
+
+<body class="bg-[#F8FAFC] dark:bg-[#0F172A] text-slate-900 dark:text-slate-100 transition-colors duration-200 min-h-screen flex">
+
+  <!-- Backdrop Mobile untuk Sidebar -->
+  <div id="mobileBackdrop" onclick="toggleMobileSidebar(false)" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-30 hidden lg:hidden"></div>
+
+  <!-- SIDEBAR NAVIGASI KIRI -->
+  <aside id="sidebar" class="fixed lg:sticky top-0 left-0 z-40 h-screen w-64 bg-white dark:bg-[#1E293B] border-r border-[#E2E8F0] dark:border-[#334155] flex flex-col justify-between transition-all duration-300 -translate-x-full lg:translate-x-0 shrink-0">
+    <div>
+      <!-- Logo & Tombol Collapse -->
+      <div class="h-16 px-4 flex items-center justify-between border-b border-[#E2E8F0] dark:border-[#334155]">
+        <div class="flex items-center gap-3 overflow-hidden">
+          <div class="w-9 h-9 rounded-xl bg-[#6366F1] flex items-center justify-center text-white shrink-0">
+            <i data-lucide="graduation-cap" class="w-5 h-5"></i>
+          </div>
+          <span class="sidebar-label font-bold text-base tracking-tight whitespace-nowrap">BelajarKu</span>
+        </div>
+        <button onclick="toggleDesktopSidebar()" title="Perkecil/Perluas Sidebar" class="hidden lg:flex p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
+          <i id="collapseIcon" data-lucide="panel-left-close" class="w-4 h-4"></i>
+        </button>
+        <button onclick="toggleMobileSidebar(false)" class="lg:hidden p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- 5 Menu Navigasi Utama -->
+      <nav class="p-3 space-y-1.5" aria-label="Navigasi Utama">
+        <button onclick="switchTab('dashboard')" data-nav="dashboard" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer">
+          <i data-lucide="layout-grid" class="w-5 h-5 shrink-0"></i>
+          <span class="sidebar-label whitespace-nowrap">Dashboard</span>
+        </button>
+
+        <button onclick="switchTab('kurikulum')" data-nav="kurikulum" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer">
+          <i data-lucide="book-open-check" class="w-5 h-5 shrink-0"></i>
+          <span class="sidebar-label whitespace-nowrap">Kurikulum Saya</span>
+        </button>
+
+        <button onclick="switchTab('timer')" data-nav="timer" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer">
+          <i data-lucide="timer" class="w-5 h-5 shrink-0"></i>
+          <span class="sidebar-label whitespace-nowrap">Fokus Timer</span>
+        </button>
+
+        <button onclick="switchTab('statistik')" data-nav="statistik" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer">
+          <i data-lucide="bar-chart-3" class="w-5 h-5 shrink-0"></i>
+          <span class="sidebar-label whitespace-nowrap">Statistik</span>
+        </button>
+
+        <button onclick="switchTab('pengaturan')" data-nav="pengaturan" class="nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors cursor-pointer">
+          <i data-lucide="settings" class="w-5 h-5 shrink-0"></i>
+          <span class="sidebar-label whitespace-nowrap">Pengaturan</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Status Mini Timer di Bawah Sidebar saat Timer Berjalan -->
+    <div id="sidebarMiniTimer" class="p-3 m-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 hidden">
+      <div class="flex items-center justify-between text-xs text-indigo-500 dark:text-indigo-400 font-medium mb-1">
+        <span class="sidebar-label flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-[#10B981] animate-ping"></span>
+          Sesi Aktif
+        </span>
+        <span id="sidebarTimerText" class="font-mono font-bold">25:00</span>
+      </div>
+      <p id="sidebarTimerTopic" class="sidebar-label text-[11px] text-slate-500 dark:text-slate-400 truncate">Fokus Belajar</p>
+    </div>
+  </aside>
+
+  <!-- KONTEN UTAMA -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- HEADER ATAS -->
+    <header class="sticky top-0 z-20 bg-[#F8FAFC]/90 dark:bg-[#0F172A]/90 backdrop-blur-md border-b border-[#E2E8F0] dark:border-[#334155] px-4 sm:px-6 lg:px-8 py-4">
+      <div class="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        
+        <!-- Kiri: Tombol Menu Mobile + Judul, Sapaan, & Tanggal-Waktu Real-Time -->
+        <div class="flex items-start sm:items-center gap-3">
+          <button onclick="toggleMobileSidebar(true)" class="lg:hidden mt-0.5 sm:mt-0 p-2 rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-slate-700 dark:text-slate-200 cursor-pointer">
+            <i data-lucide="menu" class="w-5 h-5"></i>
+          </button>
+          <div>
+            <h1 id="pageTitle" class="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Dashboard Belajar Saya
+            </h1>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              <span>Selamat belajar, <span id="headerUserName" class="font-semibold text-[#6366F1]">Pelajar</span></span>
+              <span class="hidden sm:inline text-slate-300 dark:text-slate-600">•</span>
+              <span class="inline-flex items-center gap-1.5 font-mono text-xs text-slate-600 dark:text-slate-300 bg-slate-200/60 dark:bg-slate-800/80 px-2 py-0.5 rounded-md">
+                <i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-[#6366F1]"></i>
+                <span id="liveDateTime">Memuat waktu...</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kanan: Streak, Total Jam Belajar, Catat Manual, & Theme Toggle -->
+        <div class="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          <!-- Badge Streak -->
+          <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155]">
+            <span class="text-base leading-none" aria-hidden="true">🔥</span>
+            <span class="font-mono text-xs sm:text-sm font-semibold text-[#F59E0B]">
+              <span id="headerStreak">7</span> Hari Streak
+            </span>
+          </div>
+
+          <!-- Total Jam Belajar -->
+          <div class="flex items-center gap-2 px-3 py-2 rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155]">
+            <i data-lucide="clock" class="w-4 h-4 text-[#6366F1] shrink-0"></i>
+            <span class="text-xs sm:text-sm text-slate-500 dark:text-slate-400 hidden sm:inline">Total Jam Belajar:</span>
+            <span id="headerTotalHours" class="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+              82 Jam 45 Menit
+            </span>
+          </div>
+
+          <!-- Tombol + Catat Manual -->
+          <button onclick="openManualLogModal()" class="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#6366F1] hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Catat Manual</span>
+          </button>
+
+          <!-- Toggle Dark / Light Mode -->
+          <button onclick="toggleTheme()" id="themeToggleBtn" title="Ganti Tema Gelap / Terang" class="p-2.5 rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] text-slate-700 dark:text-slate-200 hover:border-[#6366F1] transition-colors cursor-pointer">
+            <i id="themeIcon" data-lucide="sun" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+      </div>
+    </header>
+
+    <!-- AREA KONTEN DINAMIS (BENTO GRID / TAB VIEWS) -->
+    <main id="mainContent" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <!-- Konten dirender oleh JavaScript berdasarkan tab aktif -->
+    </main>
+
+  </div>
+
+  <!-- MODAL CONTAINER REUSABLE -->
+  <div id="modalOverlay" class="fixed inset-0 z-50 bg-slate-950/65 backdrop-blur-xs hidden items-center justify-center p-4 overflow-y-auto">
+    <div id="modalCard" class="w-full max-w-lg bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-6 transition-all my-auto">
+      <div class="flex items-center justify-between mb-4">
+        <h3 id="modalTitle" class="text-lg font-bold text-slate-900 dark:text-white">Judul Modal</h3>
+        <button onclick="closeModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+  <!-- SCRIPT UTAMA APLIKASI -->
+  <script>
+    // =========================================================================
+    // 1. STATE APLIKASI & DATA AWAL (DEFAULT DEMO)
+    // =========================================================================
+    const STORAGE_KEY = 'dashboard_belajar_saya_v2';
+
+    function getLocalDateKey(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    const DEFAULT_STATE = {
+      userName: 'Pelajar',
+      theme: 'dark',
+      streak: 7,
+      totalMinutes: 4965, // 82 Jam 45 Menit
+      defaultFocusMinutes: 25,
+      currentFocusMinutes: 25,
+      lastActiveDate: getLocalDateKey(),
+      dailyMinutesMap: {},
+      weeklyMinutes: [90, 180, 270, 210, 120, 300, 150], // Sen - Min (dalam menit)
+      activeSubtopicId: 'sub-3',
+      modules: [
+        {
+          id: 'mod-1',
+          title: 'Dasar-Dasar UI/UX',
+          loggedMinutes: 2520,
+          targetValue: 2,
+          targetUnit: 'minggu',
+          targetDays: 14,
+          sessionsPerDay: 1,
+          targetSpentMinutes: 50,
+          createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+          deadlineAt: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
+          notes: [
+            {
+              id: 'note-1',
+              type: 'kendala',
+              date: getLocalDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000)),
+              category: 'Tugas / Aktivitas Mendadak',
+              content: 'Ada agenda mendadak kemarin sehingga sesi Wireframing tertunda. Dikejar melalui penyesuaian target harian hari ini.'
+            }
+          ],
+          subtopics: [
+            { id: 'sub-1', title: 'Pengenalan UI/UX', completed: true },
+            { id: 'sub-2', title: 'Teori Warna & Tipografi', completed: true },
+            { id: 'sub-3', title: 'Wireframing', completed: false }
+          ]
+        },
+        {
+          id: 'mod-2',
+          title: 'Pemrograman Web Dasar',
+          loggedMinutes: 2445,
+          targetValue: 1,
+          targetUnit: 'bulan',
+          targetDays: 30,
+          sessionsPerDay: 1,
+          targetSpentMinutes: 25,
+          createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+          deadlineAt: new Date(Date.now() + 28 * 24 * 60 * 60 * 1000).toISOString(),
+          notes: [],
+          subtopics: [
+            { id: 'sub-4', title: 'HTML & CSS dasar', completed: true },
+            { id: 'sub-5', title: 'JavaScript Intro', completed: false },
+            { id: 'sub-6', title: 'DOM Manipulation', completed: false }
+          ]
+        }
+      ],
+      habits: [
+        { id: 'hab-1', title: 'Membaca Modul (30 m)', completed: false },
+        { id: 'hab-2', title: 'Latihan Coding', completed: false },
+        { id: 'hab-3', title: 'Mengulang Kosa Kata', completed: false }
+      ],
+      sessionLogs: [
+        { id: 'log-1', date: getLocalDateKey(), time: '09:30', subtopicTitle: 'Teori Warna & Tipografi', moduleTitle: 'Dasar-Dasar UI/UX', minutes: 45, type: 'Pomodoro' },
+        { id: 'log-2', date: getLocalDateKey(new Date(Date.now() - 86400000)), time: '19:15', subtopicTitle: 'HTML & CSS dasar', moduleTitle: 'Pemrograman Web Dasar', minutes: 60, type: 'Manual' }
+      ]
+    };
+
+    let state = loadState();
+    let activeTab = 'dashboard';
+    let isSidebarCollapsed = false;
+
+    // State runtime timer
+    let timerState = {
+      mode: 'focus', // 'focus' | 'shortBreak' | 'longBreak' | 'custom'
+      durationSeconds: (state.currentFocusMinutes || state.defaultFocusMinutes) * 60,
+      remainingSeconds: (state.currentFocusMinutes || state.defaultFocusMinutes) * 60,
+      isRunning: false,
+      intervalId: null
+    };
+
+    // Referensi instance Chart.js
+    let weeklyChartInstance = null;
+
+    // =========================================================================
+    // 2. PENYIMPANAN LOCALSTORAGE, REAL-TIME CLOCK, & UTILITAS
+    // =========================================================================
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
+        const parsed = JSON.parse(raw);
+        const merged = { ...JSON.parse(JSON.stringify(DEFAULT_STATE)), ...parsed };
+
+        if (!merged.currentFocusMinutes) {
+          merged.currentFocusMinutes = merged.defaultFocusMinutes || 25;
+        }
+        if (!Array.isArray(merged.weeklyMinutes) || merged.weeklyMinutes.length !== 7) {
+          merged.weeklyMinutes = [90, 180, 270, 210, 120, 300, 150];
+        }
+        if (!merged.dailyMinutesMap || typeof merged.dailyMinutesMap !== 'object') {
+          merged.dailyMinutesMap = {};
+        }
+
+        // Cek pergantian hari otomatis saat aplikasi dimuat
+        const todayKey = getLocalDateKey();
+        if (merged.lastActiveDate !== todayKey) {
+          merged.habits = (merged.habits || []).map(h => ({ ...h, completed: false }));
+          merged.lastActiveDate = todayKey;
+        }
+
+        // Normalisasi properti target waktu & catatan kendala pada setiap modul
+        merged.modules = (merged.modules || []).map(mod => {
+          const normalizedNotes = Array.isArray(mod.notes) ? mod.notes : [];
+          if (mod.targetUnit && mod.targetUnit !== 'none' && mod.targetValue) {
+            const start = mod.createdAt ? new Date(mod.createdAt) : new Date();
+            const computedDays = mod.targetDays || calculateTargetDays(mod.targetValue, mod.targetUnit, start);
+            return {
+              ...mod,
+              notes: normalizedNotes,
+              targetDays: computedDays,
+              sessionsPerDay: mod.sessionsPerDay || 1,
+              targetSpentMinutes: typeof mod.targetSpentMinutes === 'number' ? mod.targetSpentMinutes : 0
+            };
+          }
+          return { ...mod, notes: normalizedNotes };
+        });
+
+        return merged;
+      } catch (err) {
+        console.error('Gagal memuat data localStorage:', err);
+        return JSON.parse(JSON.stringify(DEFAULT_STATE));
+      }
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) {
+        console.error('Gagal menyimpan data ke localStorage:', err);
+      }
+    }
+
+    function escapeHTML(str) {
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function formatMinutesToHoursText(totalMins) {
+      const safeMins = Math.max(0, Math.round(totalMins || 0));
+      const hours = Math.floor(safeMins / 60);
+      const mins = safeMins % 60;
+      if (hours === 0) return `${mins} Menit`;
+      if (mins === 0) return `${hours} Jam 0 Menit`;
+      return `${hours} Jam ${mins} Menit`;
+    }
+
+    function formatMinutesShort(totalMins) {
+      const safeMins = Math.max(0, Math.round(totalMins || 0));
+      const hours = Math.floor(safeMins / 60);
+      const mins = safeMins % 60;
+      if (hours === 0) return `${mins}m`;
+      if (mins === 0) return `${hours}j`;
+      return `${hours}j ${mins}m`;
+    }
+
+    function formatSecondsMMSS(sec) {
+      const safe = Math.max(0, Math.floor(sec));
+      const m = String(Math.floor(safe / 60)).padStart(2, '0');
+      const s = String(safe % 60).padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    function formatDateIndo(isoOrKey) {
+      if (!isoOrKey) return '-';
+      const d = isoOrKey.length === 10 ? new Date(isoOrKey + 'T00:00:00') : new Date(isoOrKey);
+      if (isNaN(d.getTime())) return isoOrKey;
+      return new Intl.DateTimeFormat('id-ID', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      }).format(d);
+    }
+
+    // Jam & Kalender 24-Jam Real-Time di Header + Deteksi Pergantian Hari Otomatis
+    function updateLiveClock() {
+      const now = new Date();
+      const datePart = new Intl.DateTimeFormat('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(now);
+
+      const timePart = new Intl.DateTimeFormat('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      }).format(now).replace(/\./g, ':');
+
+      const clockEl = document.getElementById('liveDateTime');
+      if (clockEl) {
+        clockEl.textContent = `${datePart} • ${timePart}`;
+      }
+
+      // Cek pergantian hari (Midnight Rollover) secara real-time
+      const todayKey = getLocalDateKey(now);
+      if (state.lastActiveDate !== todayKey) {
+        state.lastActiveDate = todayKey;
+        state.habits = state.habits.map(h => ({ ...h, completed: false }));
+        saveState();
+        renderApp();
+        showToast('Hari baru dimulai! Checklist Tracker Harian telah di-reset.', 'info');
+      }
+    }
+
+    // =========================================================================
+    // 3. KALKULASI DEADLINE, TARGET WAKTU MODUL, & SMART CATCH-UP
+    // =========================================================================
+    function calculateDeadlineFromDuration(value, unit, baseDate = new Date()) {
+      if (!unit || unit === 'none' || !value) return null;
+      const amount = Math.max(1, parseInt(value, 10) || 1);
+      const start = new Date(baseDate);
+      const target = new Date(start);
+
+      if (unit === 'hari') {
+        target.setDate(start.getDate() + amount);
+      } else if (unit === 'minggu') {
+        target.setDate(start.getDate() + amount * 7);
+      } else if (unit === 'bulan') {
+        target.setMonth(start.getMonth() + amount);
+      } else {
+        return null;
+      }
+      return target.toISOString();
+    }
+
+    function calculateTargetDays(value, unit, baseDate = new Date()) {
+      if (!unit || unit === 'none' || !value) return 0;
+      const amount = Math.max(1, parseInt(value, 10) || 1);
+      if (unit === 'hari') return amount;
+      if (unit === 'minggu') return amount * 7;
+      if (unit === 'bulan') {
+        const start = new Date(baseDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setMonth(start.getMonth() + amount);
+        return Math.max(1, Math.round((end - start) / (1000 * 60 * 60 * 24)));
+      }
+      return 0;
+    }
+
+    function getModuleTargetTimeInfo(mod) {
+      if (!mod.targetUnit || mod.targetUnit === 'none' || !mod.targetValue) {
+        return null;
+      }
+
+      const start = mod.createdAt ? new Date(mod.createdAt) : new Date();
+      const totalDays = mod.targetDays || calculateTargetDays(mod.targetValue, mod.targetUnit, start);
+      const sessionsPerDay = Math.max(1, parseInt(mod.sessionsPerDay, 10) || 1);
+      const focusDuration = state.currentFocusMinutes || state.defaultFocusMinutes || 25;
+
+      // Total target menit = Jumlah Hari x Durasi Fokus Aktif x Sesi/hari
+      const totalTargetMinutes = totalDays * focusDuration * sessionsPerDay;
+      const spentMinutes = Math.max(0, mod.targetSpentMinutes || 0);
+      const remainingTargetMinutes = Math.max(0, totalTargetMinutes - spentMinutes);
+      const timePercent = totalTargetMinutes > 0
+        ? Math.min(100, Math.round((spentMinutes / totalTargetMinutes) * 100))
+        : 0;
+
+      // Hitung sisa hari hingga deadline
+      const now = new Date();
+      const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const deadlineDate = mod.deadlineAt ? new Date(mod.deadlineAt) : new Date(calculateDeadlineFromDuration(mod.targetValue, mod.targetUnit, start));
+      const deadlineMid = new Date(deadlineDate.getFullYear(), deadlineDate.getMonth(), deadlineDate.getDate());
+
+      const diffDays = Math.round((deadlineMid - todayMid) / (1000 * 60 * 60 * 24));
+      const isOverdue = diffDays < 0;
+      const isDueToday = diffDays === 0;
+      const remainingEffectiveDays = Math.max(1, diffDays);
+
+      // Kalkulasi Smart Catch-Up (Penyesuaian Target Harian saat hari terlewat)
+      const baselineDailyMinutes = focusDuration * sessionsPerDay;
+      const catchUpDailyMinutes = remainingTargetMinutes > 0
+        ? Math.ceil(remainingTargetMinutes / remainingEffectiveDays)
+        : 0;
+      const extraDailyMinutes = Math.max(0, catchUpDailyMinutes - baselineDailyMinutes);
+      const needsCatchUp = remainingTargetMinutes > 0 && extraDailyMinutes >= 2;
+
+      const unitLabel = mod.targetUnit.charAt(0).toUpperCase() + mod.targetUnit.slice(1);
+      const durationBadge = `${mod.targetValue} ${unitLabel}`;
+
+      let statusText = '';
+      if (remainingTargetMinutes === 0) {
+        statusText = 'Target Waktu Tuntas ✓';
+      } else if (isOverdue) {
+        statusText = `Terlewat ${Math.abs(diffDays)} hari`;
+      } else if (isDueToday) {
+        statusText = 'Tenggat Hari Ini';
+      } else {
+        statusText = `Sisa ${diffDays} hari`;
+      }
+
+      return {
+        durationBadge,
+        totalDays,
+        sessionsPerDay,
+        focusDuration,
+        totalTargetMinutes,
+        spentMinutes,
+        remainingTargetMinutes,
+        timePercent,
+        diffDays,
+        isOverdue,
+        isDueToday,
+        statusText,
+        deadlineFormatted: formatDateIndo(deadlineDate.toISOString()),
+        baselineDailyMinutes,
+        catchUpDailyMinutes,
+        extraDailyMinutes,
+        needsCatchUp
+      };
+    }
+
+    function getModuleProgress(mod) {
+      const total = mod.subtopics.length;
+      if (total === 0) return 0;
+      const done = mod.subtopics.filter(s => s.completed).length;
+      return Math.round((done / total) * 100);
+    }
+
+    function getOverallProgress() {
+      let total = 0;
+      let done = 0;
+      state.modules.forEach(m => {
+        total += m.subtopics.length;
+        done += m.subtopics.filter(s => s.completed).length;
+      });
+      return total === 0 ? 0 : Math.round((done / total) * 100);
+    }
+
+    function findSubtopicInfo(subtopicId) {
+      for (const mod of state.modules) {
+        const sub = mod.subtopics.find(s => s.id === subtopicId);
+        if (sub) return { module: mod, subtopic: sub };
+      }
+      return null;
+    }
+
+    // =========================================================================
+    // 4. NOTIFIKASI TOAST & AUDIO CHIME (WEB AUDIO API)
+    // =========================================================================
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+
+      const colors = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        info: 'bg-[#6366F1] text-white border-indigo-400',
+        warning: 'bg-amber-600 text-white border-amber-500'
+      };
+
+      const toast = document.createElement('div');
+      toast.className = `toast-enter pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-xl border text-xs sm:text-sm font-medium shadow-lg ${colors[type] || colors.info}`;
+      toast.innerHTML = `
+        <i data-lucide="${type === 'success' ? 'check-circle-2' : type === 'warning' ? 'alert-circle' : 'sparkles'}" class="w-4 h-4 shrink-0"></i>
+        <span class="flex-1">${escapeHTML(message)}</span>
+      `;
+      container.appendChild(toast);
+      lucide.createIcons();
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(8px)';
+        toast.style.transition = 'all 0.25s ease';
+        setTimeout(() => toast.remove(), 260);
+      }, 3400);
+    }
+
+    function playCompletionChime() {
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const notes = [523.25, 659.25, 783.99]; // C5 - E5 - G5
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.14);
+          gain.gain.setValueAtTime(0.08, ctx.currentTime + idx * 0.14);
+          gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + idx * 0.14 + 0.55);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + idx * 0.14);
+          osc.stop(ctx.currentTime + idx * 0.14 + 0.6);
+        });
+      } catch (e) {
+        // Abaikan jika browser memblokir autoplay audio
+      }
+    }
+
+    // =========================================================================
+    // 5. KONTROL NAVIGASI, SIDEBAR, TEMA, & POPOVER ACTION MENU
+    // =========================================================================
+    function applyTheme() {
+      const htmlEl = document.documentElement;
+      const iconEl = document.getElementById('themeIcon');
+      if (state.theme === 'dark') {
+        htmlEl.classList.add('dark');
+        if (iconEl) iconEl.setAttribute('data-lucide', 'sun');
+      } else {
+        htmlEl.classList.remove('dark');
+        if (iconEl) iconEl.setAttribute('data-lucide', 'moon');
+      }
+      lucide.createIcons();
+    }
+
+    function toggleTheme() {
+      state.theme = state.theme === 'dark' ? 'light' : 'dark';
+      saveState();
+      applyTheme();
+      if (activeTab === 'dashboard' || activeTab === 'statistik') {
+        renderWeeklyChart();
+      }
+    }
+
+    function switchTab(tabName) {
+      activeTab = tabName;
+      toggleMobileSidebar(false);
+      closeAllActionMenus();
+
+      const titles = {
+        dashboard: 'Dashboard Belajar Saya',
+        kurikulum: 'Kurikulum & Target Modul',
+        timer: 'Fokus Timer Pomodoro',
+        statistik: 'Statistik & Analitik Belajar',
+        pengaturan: 'Pengaturan Aplikasi'
+      };
+      const titleEl = document.getElementById('pageTitle');
+      if (titleEl) titleEl.textContent = titles[tabName] || 'Dashboard Belajar Saya';
+
+      renderApp();
+    }
+
+    function toggleDesktopSidebar() {
+      isSidebarCollapsed = !isSidebarCollapsed;
+      const sidebar = document.getElementById('sidebar');
+      const labels = document.querySelectorAll('.sidebar-label');
+      const icon = document.getElementById('collapseIcon');
+
+      if (isSidebarCollapsed) {
+        sidebar.classList.remove('w-64');
+        sidebar.classList.add('w-20');
+        labels.forEach(el => el.classList.add('hidden'));
+        if (icon) icon.setAttribute('data-lucide', 'panel-left-open');
+      } else {
+        sidebar.classList.remove('w-20');
+        sidebar.classList.add('w-64');
+        labels.forEach(el => el.classList.remove('hidden'));
+        if (icon) icon.setAttribute('data-lucide', 'panel-left-close');
+      }
+      lucide.createIcons();
+    }
+
+    function toggleMobileSidebar(open) {
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('mobileBackdrop');
+      if (open) {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+      } else {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+      }
+    }
+
+    function toggleActionMenu(event, menuId) {
+      event.stopPropagation();
+      const targetMenu = document.getElementById(menuId);
+      const isCurrentlyHidden = targetMenu ? targetMenu.classList.contains('hidden') : true;
+      closeAllActionMenus();
+      if (targetMenu && isCurrentlyHidden) {
+        targetMenu.classList.remove('hidden');
+      }
+    }
+
+    function closeAllActionMenus() {
+      document.querySelectorAll('.action-dropdown-menu').forEach(menu => {
+        menu.classList.add('hidden');
+      });
+    }
+
+    document.addEventListener('click', () => {
+      closeAllActionMenus();
+    });
+
+    // =========================================================================
+    // 6. LOGIKA KURIKULUM, SUB-BAB, HABITS, & PENCATATAN WAKTU
+    // =========================================================================
+    function toggleSubtopic(moduleId, subtopicId) {
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod) return;
+      const sub = mod.subtopics.find(s => s.id === subtopicId);
+      if (!sub) return;
+
+      sub.completed = !sub.completed;
+      saveState();
+      renderApp();
+
+      if (sub.completed) {
+        showToast(`Sub-bab "${sub.title}" selesai!`, 'success');
+      }
+    }
+
+    function deleteSubtopic(moduleId, subtopicId) {
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod) return;
+      mod.subtopics = mod.subtopics.filter(s => s.id !== subtopicId);
+      if (state.activeSubtopicId === subtopicId) {
+        state.activeSubtopicId = getFirstIncompleteSubtopicId() || '';
+      }
+      saveState();
+      renderApp();
+      showToast('Sub-bab berhasil dihapus.', 'info');
+    }
+
+    function deleteModule(moduleId) {
+      state.modules = state.modules.filter(m => m.id !== moduleId);
+      if (!findSubtopicInfo(state.activeSubtopicId)) {
+        state.activeSubtopicId = getFirstIncompleteSubtopicId() || '';
+      }
+      saveState();
+      renderApp();
+      showToast('Modul berhasil dihapus.', 'info');
+    }
+
+    function resetAllSubtopics() {
+      state.modules.forEach(m => {
+        m.subtopics.forEach(s => { s.completed = false; });
+      });
+      saveState();
+      renderApp();
+      showToast('Semua centang sub-bab telah di-reset.', 'info');
+    }
+
+    function getFirstIncompleteSubtopicId() {
+      for (const mod of state.modules) {
+        const found = mod.subtopics.find(s => !s.completed);
+        if (found) return found.id;
+      }
+      if (state.modules.length > 0 && state.modules[0].subtopics.length > 0) {
+        return state.modules[0].subtopics[0].id;
+      }
+      return '';
+    }
+
+    function handleQuickResume() {
+      const nextId = getFirstIncompleteSubtopicId();
+      if (!nextId) {
+        showToast('Semua materi sudah selesai! Tambahkan modul baru.', 'success');
+        return;
+      }
+      state.activeSubtopicId = nextId;
+      saveState();
+      renderApp();
+
+      const info = findSubtopicInfo(nextId);
+      const timerCard = document.getElementById('focusTimerCard');
+      if (timerCard) {
+        timerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        timerCard.classList.remove('highlight-pulse');
+        void timerCard.offsetWidth;
+        timerCard.classList.add('highlight-pulse');
+      }
+      if (info) {
+        showToast(`Siap fokus pada: ${info.subtopic.title}`, 'info');
+      }
+    }
+
+    function focusOnModule(moduleId) {
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod) return;
+      const targetSub = mod.subtopics.find(s => !s.completed) || mod.subtopics[0];
+      if (targetSub) {
+        state.activeSubtopicId = targetSub.id;
+        saveState();
+        renderApp();
+      }
+      const timerCard = document.getElementById('focusTimerCard');
+      if (timerCard) {
+        timerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        timerCard.classList.remove('highlight-pulse');
+        void timerCard.offsetWidth;
+        timerCard.classList.add('highlight-pulse');
+      }
+      showToast(`Fokus Timer ditautkan ke modul "${mod.title}"`, 'info');
+    }
+
+    function applyCatchUpTimer(moduleId, minutes) {
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod) return;
+      const targetSub = mod.subtopics.find(s => !s.completed) || mod.subtopics[0];
+      if (targetSub) {
+        state.activeSubtopicId = targetSub.id;
+      }
+      const safeMins = Math.max(1, Math.min(240, parseInt(minutes, 10) || 25));
+      pauseTimer();
+      timerState.mode = 'custom';
+      timerState.durationSeconds = safeMins * 60;
+      timerState.remainingSeconds = safeMins * 60;
+      saveState();
+      renderApp();
+
+      const timerCard = document.getElementById('focusTimerCard');
+      if (timerCard) {
+        timerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        timerCard.classList.remove('highlight-pulse');
+        void timerCard.offsetWidth;
+        timerCard.classList.add('highlight-pulse');
+      }
+      showToast(`Timer diatur ke ${safeMins} menit untuk mengejar target "${mod.title}"!`, 'success');
+    }
+
+    function toggleHabit(habitId) {
+      const habit = state.habits.find(h => h.id === habitId);
+      if (!habit) return;
+      habit.completed = !habit.completed;
+      saveState();
+      renderApp();
+      if (habit.completed) {
+        showToast(`Target harian "${habit.title}" tercapai!`, 'success');
+      }
+    }
+
+    function deleteHabit(habitId) {
+      state.habits = state.habits.filter(h => h.id !== habitId);
+      saveState();
+      renderApp();
+    }
+
+    function logStudyMinutes(minutes, subtopicId, sourceType = 'Pomodoro') {
+      const addedMins = Math.max(1, Math.round(minutes));
+      state.totalMinutes = (state.totalMinutes || 0) + addedMins;
+
+      // Update grafik mingguan (Senin = 0 ... Minggu = 6)
+      const now = new Date();
+      const jsDay = now.getDay(); // 0 = Min, 1 = Sen ... 6 = Sab
+      const idx = jsDay === 0 ? 6 : jsDay - 1;
+      state.weeklyMinutes[idx] = (state.weeklyMinutes[idx] || 0) + addedMins;
+
+      const todayKey = getLocalDateKey(now);
+      state.dailyMinutesMap[todayKey] = (state.dailyMinutesMap[todayKey] || 0) + addedMins;
+
+      // Update durasi spesifik pada modul tertaut
+      const info = findSubtopicInfo(subtopicId || state.activeSubtopicId);
+      let subTitle = 'Sesi Belajar Umum';
+      let modTitle = 'Umum';
+
+      if (info) {
+        info.module.loggedMinutes = (info.module.loggedMinutes || 0) + addedMins;
+        if (info.module.targetUnit && info.module.targetUnit !== 'none') {
+          info.module.targetSpentMinutes = (info.module.targetSpentMinutes || 0) + addedMins;
+        }
+        subTitle = info.subtopic.title;
+        modTitle = info.module.title;
+      }
+
+      const timeStr = new Intl.DateTimeFormat('id-ID', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(now).replace(/\./g, ':');
+
+      state.sessionLogs.unshift({
+        id: 'log-' + Date.now(),
+        date: todayKey,
+        time: timeStr,
+        subtopicTitle: subTitle,
+        moduleTitle: modTitle,
+        minutes: addedMins,
+        type: sourceType
+      });
+
+      if (state.sessionLogs.length > 50) {
+        state.sessionLogs = state.sessionLogs.slice(0, 50);
+      }
+
+      saveState();
+      renderApp();
+    }
+
+    // =========================================================================
+    // 7. LOGIKA FOKUS TIMER (POMODORO & KUSTOM)
+    // =========================================================================
+    function setTimerPreset(mode, minutes) {
+      pauseTimer();
+      timerState.mode = mode;
+      if (mode === 'focus') {
+        state.currentFocusMinutes = minutes;
+        saveState();
+      }
+      timerState.durationSeconds = minutes * 60;
+      timerState.remainingSeconds = minutes * 60;
+      renderApp();
+    }
+
+    function startTimer() {
+      if (timerState.isRunning) return;
+      timerState.isRunning = true;
+      updateTimerDisplayUI();
+
+      timerState.intervalId = setInterval(() => {
+        if (timerState.remainingSeconds > 0) {
+          timerState.remainingSeconds -= 1;
+          updateTimerDisplayUI();
+        } else {
+          completeTimerSession();
+        }
+      }, 1000);
+    }
+
+    function pauseTimer() {
+      timerState.isRunning = false;
+      if (timerState.intervalId) {
+        clearInterval(timerState.intervalId);
+        timerState.intervalId = null;
+      }
+      updateTimerDisplayUI();
+    }
+
+    function resetTimer() {
+      pauseTimer();
+      timerState.remainingSeconds = timerState.durationSeconds;
+      updateTimerDisplayUI();
+    }
+
+    function simulateTimerComplete() {
+      completeTimerSession();
+    }
+
+    function completeTimerSession() {
+      pauseTimer();
+      playCompletionChime();
+
+      const sessionMins = Math.max(1, Math.round(timerState.durationSeconds / 60));
+      const isStudyMode = timerState.mode === 'focus' || timerState.mode === 'custom';
+
+      if (isStudyMode) {
+        logStudyMinutes(sessionMins, state.activeSubtopicId, 'Pomodoro');
+        showToast(`Sesi fokus ${sessionMins} menit selesai & tercatat!`, 'success');
+      } else {
+        showToast(`Waktu istirahat ${sessionMins} menit selesai! Siap fokus kembali.`, 'info');
+      }
+
+      timerState.remainingSeconds = timerState.durationSeconds;
+      updateTimerDisplayUI();
+    }
+
+    function changeActiveSubtopic(newSubId) {
+      state.activeSubtopicId = newSubId;
+      saveState();
+      updateTimerDisplayUI();
+    }
+
+    function updateTimerDisplayUI() {
+      const timeStr = formatSecondsMMSS(timerState.remainingSeconds);
+      const displayEl = document.getElementById('timerDisplayText');
+      if (displayEl) displayEl.textContent = timeStr;
+
+      const progressEl = document.getElementById('timerProgressBar');
+      if (progressEl && timerState.durationSeconds > 0) {
+        const pct = ((timerState.durationSeconds - timerState.remainingSeconds) / timerState.durationSeconds) * 100;
+        progressEl.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+      }
+
+      const miniTimer = document.getElementById('sidebarMiniTimer');
+      const miniText = document.getElementById('sidebarTimerText');
+      const miniTopic = document.getElementById('sidebarTimerTopic');
+      if (miniTimer && miniText && miniTopic) {
+        if (timerState.isRunning) {
+          miniTimer.classList.remove('hidden');
+          miniText.textContent = timeStr;
+          const info = findSubtopicInfo(state.activeSubtopicId);
+          miniTopic.textContent = info ? info.subtopic.title : 'Sesi Fokus';
+        } else {
+          miniTimer.classList.add('hidden');
+        }
+      }
+
+      const startBtn = document.getElementById('timerStartBtn');
+      const pauseBtn = document.getElementById('timerPauseBtn');
+      if (startBtn && pauseBtn) {
+        if (timerState.isRunning) {
+          startBtn.classList.add('opacity-50', 'pointer-events-none');
+          pauseBtn.classList.remove('opacity-50');
+        } else {
+          startBtn.classList.remove('opacity-50', 'pointer-events-none');
+        }
+      }
+    }
+
+    // =========================================================================
+    // 8. MODAL INTERAKTIF (MODUL, DEADLINE, CATATAN & KENDALA, MANUAL LOG)
+    // =========================================================================
+    function openModal(title, bodyHTML, maxWidthClass = 'max-w-lg') {
+      const overlay = document.getElementById('modalOverlay');
+      const card = document.getElementById('modalCard');
+      const titleEl = document.getElementById('modalTitle');
+      const bodyEl = document.getElementById('modalBody');
+
+      card.className = `w-full ${maxWidthClass} bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-6 transition-all my-auto`;
+      titleEl.textContent = title;
+      bodyEl.innerHTML = bodyHTML;
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      lucide.createIcons();
+    }
+
+    function closeModal() {
+      const overlay = document.getElementById('modalOverlay');
+      overlay.classList.add('hidden');
+      overlay.classList.remove('flex');
+    }
+
+    document.getElementById('modalOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'modalOverlay') closeModal();
+    });
+
+    // Helper Pemilih Rentang Waktu (Hari, Minggu, Bulan, Tanpa Target)
+    function buildDeadlineSelectorHTML(defaultUnit = 'minggu', defaultVal = 2, defaultSessions = 1) {
+      const units = [
+        { id: 'hari', label: 'Hari' },
+        { id: 'minggu', label: 'Minggu' },
+        { id: 'bulan', label: 'Bulan' },
+        { id: 'none', label: 'Tanpa Target' }
+      ];
+
+      const unitButtons = units.map(u => {
+        const active = u.id === defaultUnit;
+        return `
+          <button type="button" data-unit-btn="${u.id}" onclick="selectDeadlineUnit('${u.id}')"
+            class="px-3 py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+              active
+                ? 'bg-[#6366F1] text-white border-[#6366F1]'
+                : 'bg-slate-50 dark:bg-[#0F172A] text-slate-600 dark:text-slate-300 border-[#E2E8F0] dark:border-[#334155] hover:border-[#6366F1]'
+            }">
+            ${u.label}
+          </button>
+        `;
+      }).join('');
+
+      return `
+        <div class="space-y-3">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+            Target Rentang Waktu Penguasaan
+          </label>
+          <input type="hidden" id="deadlineUnitInput" value="${defaultUnit}" />
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            ${unitButtons}
+          </div>
+
+          <div id="deadlineNumericControls" class="${defaultUnit === 'none' ? 'hidden' : 'space-y-3 pt-1'}">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Jumlah Rentang Waktu</label>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="stepDeadlineValue(-1)" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] font-bold hover:border-[#6366F1] cursor-pointer">-</button>
+                  <input type="number" id="deadlineValueInput" min="1" max="365" value="${defaultVal}" oninput="updateDeadlinePreview()"
+                    class="w-full h-9 text-center font-mono text-sm font-bold rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+                  <button type="button" onclick="stepDeadlineValue(1)" class="w-9 h-9 rounded-xl bg-slate-100 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] font-bold hover:border-[#6366F1] cursor-pointer">+</button>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs text-slate-500 dark:text-slate-400 mb-1">Target Sesi Fokus / Hari</label>
+                <select id="deadlineSessionsInput" onchange="updateDeadlinePreview()"
+                  class="w-full h-9 px-3 text-xs sm:text-sm font-medium rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]">
+                  <option value="1" ${defaultSessions === 1 ? 'selected' : ''}>1x sesi / hari</option>
+                  <option value="2" ${defaultSessions === 2 ? 'selected' : ''}>2x sesi / hari</option>
+                  <option value="3" ${defaultSessions === 3 ? 'selected' : ''}>3x sesi / hari</option>
+                  <option value="4" ${defaultSessions === 4 ? 'selected' : ''}>4x sesi / hari</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Quick Chips -->
+            <div id="deadlineQuickChips" class="flex flex-wrap gap-1.5"></div>
+
+            <!-- Pratinjau Tanggal & Total Jam Target -->
+            <div id="deadlinePreviewBox" class="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-slate-700 dark:text-slate-300">
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function selectDeadlineUnit(unit) {
+      const unitInput = document.getElementById('deadlineUnitInput');
+      const controls = document.getElementById('deadlineNumericControls');
+      if (!unitInput) return;
+
+      unitInput.value = unit;
+      document.querySelectorAll('[data-unit-btn]').forEach(btn => {
+        const isSelected = btn.getAttribute('data-unit-btn') === unit;
+        btn.className = `px-3 py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+          isSelected
+            ? 'bg-[#6366F1] text-white border-[#6366F1]'
+            : 'bg-slate-50 dark:bg-[#0F172A] text-slate-600 dark:text-slate-300 border-[#E2E8F0] dark:border-[#334155] hover:border-[#6366F1]'
+        }`;
+      });
+
+      if (controls) {
+        if (unit === 'none') {
+          controls.classList.add('hidden');
+        } else {
+          controls.classList.remove('hidden');
+          controls.classList.add('space-y-3', 'pt-1');
+          renderDeadlineQuickChips(unit);
+          updateDeadlinePreview();
+        }
+      }
+    }
+
+    function renderDeadlineQuickChips(unit) {
+      const container = document.getElementById('deadlineQuickChips');
+      if (!container) return;
+      const presets = unit === 'hari' ? [1, 3, 5, 10] : unit === 'minggu' ? [1, 2, 3, 4] : [1, 2, 3, 6];
+      container.innerHTML = presets.map(num => `
+        <button type="button" onclick="applyDeadlineQuickValue(${num})"
+          class="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-slate-100 dark:bg-[#0F172A] text-slate-600 dark:text-slate-300 hover:bg-indigo-500/15 hover:text-[#6366F1] transition-colors cursor-pointer">
+          ${num} ${unit}
+        </button>
+      `).join('');
+    }
+
+    function applyDeadlineQuickValue(val) {
+      const input = document.getElementById('deadlineValueInput');
+      if (input) {
+        input.value = val;
+        updateDeadlinePreview();
+      }
+    }
+
+    function stepDeadlineValue(delta) {
+      const input = document.getElementById('deadlineValueInput');
+      if (!input) return;
+      const next = Math.max(1, Math.min(365, (parseInt(input.value, 10) || 1) + delta));
+      input.value = next;
+      updateDeadlinePreview();
+    }
+
+    function updateDeadlinePreview() {
+      const unit = document.getElementById('deadlineUnitInput')?.value || 'none';
+      const val = Math.max(1, parseInt(document.getElementById('deadlineValueInput')?.value, 10) || 1);
+      const sessions = Math.max(1, parseInt(document.getElementById('deadlineSessionsInput')?.value, 10) || 1);
+      const box = document.getElementById('deadlinePreviewBox');
+      if (!box || unit === 'none') return;
+
+      const now = new Date();
+      const deadlineIso = calculateDeadlineFromDuration(val, unit, now);
+      const totalDays = calculateTargetDays(val, unit, now);
+      const focusMins = state.currentFocusMinutes || state.defaultFocusMinutes || 25;
+      const totalTargetMins = totalDays * focusMins * sessions;
+
+      box.innerHTML = `
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+          <span>Tenggat: <strong class="text-slate-900 dark:text-white">${formatDateIndo(deadlineIso)}</strong> (${totalDays} hari)</span>
+          <span class="font-mono font-semibold text-[#6366F1]">Target: ${formatMinutesToHoursText(totalTargetMins)}</span>
+        </div>
+        <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+          Dihitung dari ${totalDays} hari × ${focusMins} menit fokus × ${sessions}x sesi/hari.
+        </p>
+      `;
+    }
+
+    // Modal 1: Tambah Modul Baru
+    function openAddModuleModal() {
+      const body = `
+        <form onsubmit="submitAddModule(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Nama Modul / Mata Pelajaran</label>
+            <input type="text" id="newModuleTitle" required placeholder="Contoh: Algoritma & Struktur Data"
+              class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Sub-bab Awal (Pisahkan dengan koma)</label>
+            <input type="text" id="newModuleSubtopics" required placeholder="Pengenalan Array, Linked List, Stack & Queue"
+              class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+          </div>
+
+          ${buildDeadlineSelectorHTML('minggu', 2, 1)}
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">Batal</button>
+            <button type="submit" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#6366F1] hover:bg-indigo-500 text-white cursor-pointer">Simpan Modul</button>
+          </div>
+        </form>
+      `;
+      openModal('Tambah Modul Belajar Baru', body);
+      renderDeadlineQuickChips('minggu');
+      updateDeadlinePreview();
+    }
+
+    function submitAddModule(e) {
+      e.preventDefault();
+      const title = document.getElementById('newModuleTitle').value.trim();
+      const rawSubs = document.getElementById('newModuleSubtopics').value;
+      const unit = document.getElementById('deadlineUnitInput').value;
+      const val = Math.max(1, parseInt(document.getElementById('deadlineValueInput')?.value, 10) || 1);
+      const sessions = Math.max(1, parseInt(document.getElementById('deadlineSessionsInput')?.value, 10) || 1);
+
+      if (!title) return;
+
+      const subtopics = rawSubs
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+        .map((sTitle, idx) => ({
+          id: 'sub-' + Date.now() + '-' + idx,
+          title: sTitle,
+          completed: false
+        }));
+
+      if (subtopics.length === 0) {
+        subtopics.push({ id: 'sub-' + Date.now(), title: 'Materi Utama', completed: false });
+      }
+
+      const now = new Date();
+      const hasDeadline = unit && unit !== 'none';
+      const newMod = {
+        id: 'mod-' + Date.now(),
+        title,
+        loggedMinutes: 0,
+        targetValue: hasDeadline ? val : 0,
+        targetUnit: hasDeadline ? unit : 'none',
+        targetDays: hasDeadline ? calculateTargetDays(val, unit, now) : 0,
+        sessionsPerDay: sessions,
+        targetSpentMinutes: 0,
+        createdAt: now.toISOString(),
+        deadlineAt: hasDeadline ? calculateDeadlineFromDuration(val, unit, now) : null,
+        notes: [],
+        subtopics
+      };
+
+      state.modules.push(newMod);
+      if (!state.activeSubtopicId && subtopics.length > 0) {
+        state.activeSubtopicId = subtopics[0].id;
+      }
+
+      saveState();
+      closeModal();
+      renderApp();
+      showToast(`Modul "${title}" berhasil ditambahkan!`, 'success');
+    }
+
+    // Modal 2: Atur Target Waktu & Deadline Modul
+    function openEditModuleDeadlineModal(moduleId) {
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod) return;
+
+      const curUnit = mod.targetUnit || 'none';
+      const curVal = mod.targetValue || 1;
+      const curSessions = mod.sessionsPerDay || 1;
+
+      const body = `
+        <form onsubmit="submitEditModuleDeadline(event, '${mod.id}')" class="space-y-4">
+          <p class="text-xs text-slate-500 dark:text-slate-400">
+            Atur ulang rentang waktu penguasaan untuk modul <strong class="text-slate-800 dark:text-slate-200">${escapeHTML(mod.title)}</strong>.
+          </p>
+
+          ${buildDeadlineSelectorHTML(curUnit, curVal, curSessions)}
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">Batal</button>
+            <button type="submit" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#6366F1] hover:bg-indigo-500 text-white cursor-pointer">Perbarui Target</button>
+          </div>
+        </form>
+      `;
+      openModal('Atur Target Waktu Modul', body);
+      if (curUnit !== 'none') {
+        renderDeadlineQuickChips(curUnit);
+        updateDeadlinePreview();
+      }
+    }
+
+    function submitEditModuleDeadline(e, moduleId) {
+      e.preventDefault();
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod) return;
+
+      const unit = document.getElementById('deadlineUnitInput').value;
+      const val = Math.max(1, parseInt(document.getElementById('deadlineValueInput')?.value, 10) || 1);
+      const sessions = Math.max(1, parseInt(document.getElementById('deadlineSessionsInput')?.value, 10) || 1);
+      const now = new Date();
+      const hasDeadline = unit && unit !== 'none';
+
+      mod.targetUnit = hasDeadline ? unit : 'none';
+      mod.targetValue = hasDeadline ? val : 0;
+      mod.targetDays = hasDeadline ? calculateTargetDays(val, unit, now) : 0;
+      mod.sessionsPerDay = sessions;
+      mod.createdAt = now.toISOString();
+      mod.deadlineAt = hasDeadline ? calculateDeadlineFromDuration(val, unit, now) : null;
+
+      saveState();
+      closeModal();
+      renderApp();
+      showToast(`Target waktu "${mod.title}" diperbarui!`, 'success');
+    }
+
+    // Modal 3: Catatan & Kendala Khusus per Modul
+    function openModuleNotesModal(moduleId) {
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod) return;
+
+      const notesListHTML = (mod.notes && mod.notes.length > 0)
+        ? mod.notes.map(n => `
+            <div class="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] space-y-1.5">
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="px-2 py-0.5 rounded-md text-[11px] font-semibold ${
+                    n.type === 'kendala'
+                      ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                      : 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+                  }">
+                    ${n.type === 'kendala' ? 'Kendala / Terlewat' : 'Catatan Materi'}
+                  </span>
+                  <span class="text-[11px] font-mono text-slate-500 dark:text-slate-400">${formatDateIndo(n.date)}</span>
+                  ${n.category ? `<span class="text-[11px] text-slate-500 dark:text-slate-400">• ${escapeHTML(n.category)}</span>` : ''}
+                </div>
+                <button type="button" onclick="deleteModuleNote('${mod.id}', '${n.id}')" title="Hapus catatan" class="text-slate-400 hover:text-rose-500 p-1 cursor-pointer">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
+              <p class="text-xs sm:text-sm text-slate-700 dark:text-slate-200 leading-relaxed">${escapeHTML(n.content)}</p>
+            </div>
+          `).join('')
+        : `<p class="text-xs text-slate-500 dark:text-slate-400 text-center py-4">Belum ada catatan atau log kendala pada modul ini.</p>`;
+
+      const body = `
+        <div class="space-y-4">
+          <form onsubmit="submitModuleNote(event, '${mod.id}')" class="p-3.5 rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] space-y-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Jenis Catatan</label>
+                <select id="noteTypeInput" class="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]">
+                  <option value="kendala">Alasan / Kendala Hari Terlewat</option>
+                  <option value="catatan">Ringkasan / Catatan Belajar</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Tanggal Kejadian</label>
+                <input type="date" id="noteDateInput" value="${getLocalDateKey()}" required
+                  class="w-full px-3 py-2 text-xs font-mono rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Kategori Kendala</label>
+              <select id="noteCategoryInput" class="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]">
+                <option value="Tugas / Aktivitas Mendadak">Tugas / Aktivitas Mendadak</option>
+                <option value="Kondisi Kesehatan / Kelelahan">Kondisi Kesehatan / Kelelahan</option>
+                <option value="Materi Sulit Dipahami">Materi Sulit Dipahami</option>
+                <option value="Kendala Teknis / Perangkat">Kendala Teknis / Perangkat</option>
+                <option value="Evaluasi Progres">Evaluasi Progres</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1">Detail Alasan, Kendala, & Rencana Kejar Target</label>
+              <textarea id="noteContentInput" rows="3" required placeholder="Tuliskan alasan hari belajar terlewat atau catatan penting materi..."
+                class="w-full px-3 py-2 text-xs sm:text-sm rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]"></textarea>
+            </div>
+
+            <div class="flex justify-end">
+              <button type="submit" class="px-3.5 py-2 rounded-xl bg-[#6366F1] hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer">
+                + Simpan Catatan
+              </button>
+            </div>
+          </form>
+
+          <div>
+            <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
+              Riwayat Catatan & Kendala (${(mod.notes || []).length})
+            </h4>
+            <div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              ${notesListHTML}
+            </div>
+          </div>
+        </div>
+      `;
+      openModal(`Catatan & Kendala — ${mod.title}`, body, 'max-w-xl');
+    }
+
+    function submitModuleNote(e, moduleId) {
+      e.preventDefault();
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod) return;
+
+      const type = document.getElementById('noteTypeInput').value;
+      const date = document.getElementById('noteDateInput').value || getLocalDateKey();
+      const category = document.getElementById('noteCategoryInput').value;
+      const content = document.getElementById('noteContentInput').value.trim();
+      if (!content) return;
+
+      if (!Array.isArray(mod.notes)) mod.notes = [];
+      mod.notes.unshift({
+        id: 'note-' + Date.now(),
+        type,
+        date,
+        category,
+        content
+      });
+
+      saveState();
+      renderApp();
+      openModuleNotesModal(moduleId);
+      showToast('Catatan & kendala berhasil disimpan!', 'success');
+    }
+
+    function deleteModuleNote(moduleId, noteId) {
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod || !Array.isArray(mod.notes)) return;
+      mod.notes = mod.notes.filter(n => n.id !== noteId);
+      saveState();
+      renderApp();
+      openModuleNotesModal(moduleId);
+      showToast('Catatan dihapus.', 'info');
+    }
+
+    // Modal 4: Tambah Sub-bab ke Modul
+    function openAddSubtopicModal(moduleId) {
+      const mod = state.modules.find(m => m.id === moduleId);
+      if (!mod) return;
+
+      const body = `
+        <form onsubmit="submitAddSubtopic(event, '${mod.id}')" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">
+              Judul Sub-bab Baru untuk "${escapeHTML(mod.title)}"
+            </label>
+            <input type="text" id="newSubtopicTitle" required placeholder="Contoh: Flexbox & CSS Grid"
+              class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+          </div>
+          <div class="flex justify-end gap-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">Batal</button>
+            <button type="submit" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#6366F1] hover:bg-indigo-500 text-white cursor-pointer">Tambah</button>
+          </div>
+        </form>
+      `;
+      openModal('Tambah Sub-bab Materi', body);
+    }
+
+    function submitAddSubtopic(e, moduleId) {
+      e.preventDefault();
+      const mod = state.modules.find(m => m.id === moduleId);
+      const title = document.getElementById('newSubtopicTitle').value.trim();
+      if (!mod || !title) return;
+
+      const newSub = { id: 'sub-' + Date.now(), title, completed: false };
+      mod.subtopics.push(newSub);
+      if (!state.activeSubtopicId) state.activeSubtopicId = newSub.id;
+
+      saveState();
+      closeModal();
+      renderApp();
+      showToast(`Sub-bab "${title}" ditambahkan!`, 'success');
+    }
+
+    // Modal 5: Catat Durasi Belajar Manual
+    function openManualLogModal() {
+      const optionsHTML = state.modules.map(m => `
+        <optgroup label="${escapeHTML(m.title)}">
+          ${m.subtopics.map(s => `
+            <option value="${s.id}" ${s.id === state.activeSubtopicId ? 'selected' : ''}>${escapeHTML(s.title)}</option>
+          `).join('')}
+        </optgroup>
+      `).join('');
+
+      const body = `
+        <form onsubmit="submitManualLog(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Materi / Sub-bab yang Dipelajari</label>
+            <select id="manualLogSubtopic" class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]">
+              ${optionsHTML}
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Durasi Belajar (Menit)</label>
+            <input type="number" id="manualLogMinutes" min="1" max="600" value="30" required
+              class="w-full px-3.5 py-2.5 font-mono text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+            <div class="flex gap-2 mt-2">
+              ${[15, 30, 45, 60, 90].map(m => `
+                <button type="button" onclick="document.getElementById('manualLogMinutes').value=${m}"
+                  class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-100 dark:bg-[#0F172A] hover:border-[#6366F1] border border-transparent cursor-pointer">${m}m</button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">Batal</button>
+            <button type="submit" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#10B981] hover:bg-emerald-500 text-white cursor-pointer">Simpan Catatan Waktu</button>
+          </div>
+        </form>
+      `;
+      openModal('Catat Durasi Belajar Manual', body);
+    }
+
+    function submitManualLog(e) {
+      e.preventDefault();
+      const subId = document.getElementById('manualLogSubtopic').value;
+      const mins = Math.max(1, parseInt(document.getElementById('manualLogMinutes').value, 10) || 30);
+      logStudyMinutes(mins, subId, 'Manual');
+      closeModal();
+      showToast(`+${mins} menit berhasil dicatat ke riwayat belajar!`, 'success');
+    }
+
+    // Modal 6: Durasi Kustom Fokus Timer
+    function openCustomTimerModal() {
+      const currentMins = Math.round(timerState.durationSeconds / 60) || 25;
+      const body = `
+        <form onsubmit="submitCustomTimer(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Durasi Sesi Fokus (Menit)</label>
+            <input type="number" id="customTimerMinutesInput" min="1" max="240" value="${currentMins}" required
+              class="w-full px-3.5 py-2.5 font-mono text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+            <div class="flex flex-wrap gap-2 mt-2">
+              ${[15, 25, 45, 60, 90].map(m => `
+                <button type="button" onclick="document.getElementById('customTimerMinutesInput').value=${m}"
+                  class="px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-100 dark:bg-[#0F172A] hover:text-[#6366F1] cursor-pointer">${m} menit</button>
+              `).join('')}
+            </div>
+          </div>
+          <div class="flex justify-end gap-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">Batal</button>
+            <button type="submit" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#6366F1] hover:bg-indigo-500 text-white cursor-pointer">Terapkan Timer</button>
+          </div>
+        </form>
+      `;
+      openModal('Atur Durasi Fokus Kustom', body);
+    }
+
+    function submitCustomTimer(e) {
+      e.preventDefault();
+      const mins = Math.max(1, Math.min(240, parseInt(document.getElementById('customTimerMinutesInput').value, 10) || 25));
+      setTimerPreset('focus', mins);
+      closeModal();
+      showToast(`Durasi fokus diatur ke ${mins} menit.`, 'info');
+    }
+
+    // Modal 7: Tambah Target Harian (Habit)
+    function openAddHabitModal() {
+      const body = `
+        <form onsubmit="submitAddHabit(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Nama Kebiasaan / Target Harian</label>
+            <input type="text" id="newHabitTitle" required placeholder="Contoh: Latihan Soal 20 Menit"
+              class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+          </div>
+          <div class="flex justify-end gap-2">
+            <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">Batal</button>
+            <button type="submit" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-[#6366F1] hover:bg-indigo-500 text-white cursor-pointer">Simpan Target</button>
+          </div>
+        </form>
+      `;
+      openModal('Tambah Target Tracker Harian', body);
+    }
+
+    function submitAddHabit(e) {
+      e.preventDefault();
+      const title = document.getElementById('newHabitTitle').value.trim();
+      if (!title) return;
+      state.habits.push({ id: 'hab-' + Date.now(), title, completed: false });
+      saveState();
+      closeModal();
+      renderApp();
+      showToast('Target harian ditambahkan!', 'success');
+    }
+
+    // =========================================================================
+    // 9. KOMPONEN RENDERING UI (KARTU MODUL, TIMER, HABITS, CHART, & TABS)
+    // =========================================================================
+    function renderModuleCardHTML(mod) {
+      const pct = getModuleProgress(mod);
+      const targetInfo = getModuleTargetTimeInfo(mod);
+      const notesCount = Array.isArray(mod.notes) ? mod.notes.length : 0;
+
+      let deadlineSectionHTML = '';
+      if (targetInfo) {
+        const badgeColor = targetInfo.remainingTargetMinutes === 0
+          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/25'
+          : targetInfo.isOverdue
+            ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/25'
+            : targetInfo.isDueToday
+              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/25'
+              : 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20';
+
+        const catchUpBannerHTML = targetInfo.needsCatchUp
+          ? `
+            <div class="mt-2.5 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div class="text-[11px] text-amber-700 dark:text-amber-300">
+                <span class="font-semibold">Kejar target: ${targetInfo.catchUpDailyMinutes}m/hari</span>
+                <span class="opacity-85">(+${targetInfo.extraDailyMinutes}m dari jadwal normal)</span>
+              </div>
+              <button type="button" onclick="applyCatchUpTimer('${mod.id}', ${targetInfo.catchUpDailyMinutes})"
+                class="shrink-0 px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-mono text-[11px] font-bold transition-colors cursor-pointer">
+                Set Timer (${targetInfo.catchUpDailyMinutes}m)
+              </button>
+            </div>
+          `
+          : '';
+
+        deadlineSectionHTML = `
+          <div class="mt-3 p-3 rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155]">
+            <div class="flex flex-wrap items-center justify-between gap-1.5 mb-2">
+              <button type="button" onclick="openEditModuleDeadlineModal('${mod.id}')" title="Klik untuk mengubah target waktu"
+                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${badgeColor} cursor-pointer">
+                <i data-lucide="calendar-days" class="w-3 h-3"></i>
+                <span>${targetInfo.durationBadge} • ${targetInfo.statusText}</span>
+              </button>
+              <span class="text-[11px] text-slate-400">Tenggat: ${targetInfo.deadlineFormatted}</span>
+            </div>
+
+            <div class="flex items-center justify-between text-xs mb-1">
+              <span class="text-slate-500 dark:text-slate-400">Sisa Target Waktu:</span>
+              <span class="font-mono font-bold text-slate-900 dark:text-white">
+                ${formatMinutesToHoursText(targetInfo.remainingTargetMinutes)}
+                <span class="text-[11px] font-normal text-slate-400">/ ${formatMinutesShort(targetInfo.totalTargetMinutes)}</span>
+              </span>
+            </div>
+
+            <div class="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+              <div class="progress-fill h-full rounded-full bg-[#6366F1]" style="width: ${targetInfo.timePercent}%"></div>
+            </div>
+
+            ${catchUpBannerHTML}
+          </div>
+        `;
+      } else {
+        deadlineSectionHTML = `
+          <div class="mt-2.5">
+            <button type="button" onclick="openEditModuleDeadlineModal('${mod.id}')"
+              class="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-[#6366F1] transition-colors cursor-pointer">
+              <i data-lucide="calendar-plus" class="w-3.5 h-3.5"></i>
+              <span>+ Atur Target Deadline & Jam Belajar</span>
+            </button>
+          </div>
+        `;
+      }
+
+      const subtopicsHTML = mod.subtopics.map(sub => `
+        <div class="group flex items-center justify-between gap-2 py-1.5 px-2 rounded-lg hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-colors">
+          <label class="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+            <input type="checkbox" ${sub.completed ? 'checked' : ''} onchange="toggleSubtopic('${mod.id}', '${sub.id}')"
+              class="w-4 h-4 rounded accent-[#6366F1] cursor-pointer shrink-0" />
+            <span class="text-xs sm:text-sm truncate transition-all ${
+              sub.completed ? 'line-through text-slate-400 dark:text-slate-500' : 'text-slate-700 dark:text-slate-200'
+            }">${escapeHTML(sub.title)}</span>
+          </label>
+          <button type="button" onclick="deleteSubtopic('${mod.id}', '${sub.id}')" title="Hapus sub-bab"
+            class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-1 transition-opacity cursor-pointer">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `).join('');
+
+      return `
+        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-[#0F172A]/80 border border-[#E2E8F0] dark:border-[#334155]">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div class="w-8 h-8 rounded-xl bg-indigo-500/15 text-[#6366F1] flex items-center justify-center shrink-0">
+                <i data-lucide="layers" class="w-4 h-4"></i>
+              </div>
+              <h4 class="font-bold text-sm sm:text-base text-slate-900 dark:text-white truncate">${escapeHTML(mod.title)}</h4>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="font-mono text-xs font-bold text-[#10B981]">${pct}%</span>
+              <div class="relative">
+                <button type="button" onclick="toggleActionMenu(event, 'menu-${mod.id}')" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-200/70 dark:hover:bg-slate-800 cursor-pointer">
+                  <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                </button>
+                <div id="menu-${mod.id}" class="action-dropdown-menu hidden absolute right-0 mt-1 w-48 rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] shadow-xl py-1.5 z-30 text-xs">
+                  <button type="button" onclick="openAddSubtopicModal('${mod.id}')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="plus" class="w-3.5 h-3.5 text-[#6366F1]"></i> Tambah Sub-bab
+                  </button>
+                  <button type="button" onclick="openEditModuleDeadlineModal('${mod.id}')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="calendar-clock" class="w-3.5 h-3.5 text-amber-500"></i> Atur Target Waktu
+                  </button>
+                  <button type="button" onclick="openModuleNotesModal('${mod.id}')" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="notebook-pen" class="w-3.5 h-3.5 text-emerald-500"></i> Catatan & Kendala
+                  </button>
+                  <div class="my-1 border-t border-[#E2E8F0] dark:border-[#334155]"></div>
+                  <button type="button" onclick="deleteModule('${mod.id}')" class="w-full text-left px-3.5 py-2 text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Hapus Modul
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Progress Bar Sub-bab -->
+          <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden mt-3">
+            <div class="progress-fill h-full rounded-full bg-gradient-to-r from-[#6366F1] to-[#10B981]" style="width: ${pct}%"></div>
+          </div>
+
+          <!-- Target Waktu & Smart Catch-Up -->
+          ${deadlineSectionHTML}
+
+          <!-- Daftar Sub-bab -->
+          <div class="mt-3 space-y-0.5">
+            ${subtopicsHTML}
+          </div>
+
+          <!-- Footer Aksi Cepat Modul -->
+          <div class="mt-3 pt-3 border-t border-[#E2E8F0] dark:border-[#334155] flex flex-wrap items-center justify-between gap-2">
+            <button type="button" onclick="focusOnModule('${mod.id}')"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-500/10 text-[#6366F1] hover:bg-indigo-500/20 transition-colors cursor-pointer">
+              <i data-lucide="play-circle" class="w-3.5 h-3.5"></i>
+              <span>Fokus Modul</span>
+            </button>
+
+            <button type="button" onclick="openModuleNotesModal('${mod.id}')"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:border-[#6366F1] transition-colors cursor-pointer">
+              <i data-lucide="notebook-pen" class="w-3.5 h-3.5 text-amber-500"></i>
+              <span>Catatan & Kendala (${notesCount})</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderFocusTimerCardHTML(isFullPage = false) {
+      const subtopicOptions = state.modules.map(m => `
+        <optgroup label="${escapeHTML(m.title)}">
+          ${m.subtopics.map(s => `
+            <option value="${s.id}" ${s.id === state.activeSubtopicId ? 'selected' : ''}>${escapeHTML(s.title)}</option>
+          `).join('')}
+        </optgroup>
+      `).join('');
+
+      const focusMins = state.currentFocusMinutes || state.defaultFocusMinutes || 25;
+
+      return `
+        <div id="focusTimerCard" class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5 flex flex-col justify-between transition-all ${isFullPage ? 'max-w-xl mx-auto' : ''}">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Fokus Timer</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Pomodoro & Sesi Belajar</p>
+              </div>
+              <div class="relative">
+                <button type="button" onclick="toggleActionMenu(event, 'timerMenuDropdown')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                  <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                </button>
+                <div id="timerMenuDropdown" class="action-dropdown-menu hidden absolute right-0 mt-1 w-48 rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] shadow-xl py-1.5 z-30 text-xs">
+                  <button type="button" onclick="openCustomTimerModal()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-[#6366F1]"></i> Atur Durasi Kustom
+                  </button>
+                  <button type="button" onclick="resetTimer()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-slate-400"></i> Reset Waktu
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Preset Mode Tabs -->
+            <div class="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-100 dark:bg-[#0F172A] mb-4">
+              <button type="button" onclick="setTimerPreset('focus', ${focusMins})"
+                class="py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  timerState.mode === 'focus' || timerState.mode === 'custom'
+                    ? 'bg-[#6366F1] text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }">Fokus (${focusMins}m)</button>
+              <button type="button" onclick="setTimerPreset('shortBreak', 5)"
+                class="py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  timerState.mode === 'shortBreak'
+                    ? 'bg-[#10B981] text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }">Istirahat 5m</button>
+              <button type="button" onclick="setTimerPreset('longBreak', 15)"
+                class="py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                  timerState.mode === 'longBreak'
+                    ? 'bg-[#10B981] text-white'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }">Panjang 15m</button>
+            </div>
+
+            <!-- Tampilan Jam Mundur Besar -->
+            <div class="text-center my-4">
+              <div id="timerDisplayText" class="font-mono text-4xl sm:text-5xl font-bold tracking-tight text-slate-900 dark:text-white">
+                ${formatSecondsMMSS(timerState.remainingSeconds)}
+              </div>
+              <div class="w-full h-1.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden mt-3">
+                <div id="timerProgressBar" class="progress-fill h-full rounded-full bg-[#10B981]" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <!-- Tombol Kontrol -->
+            <div class="grid grid-cols-2 gap-2.5 mb-3">
+              <button type="button" id="timerStartBtn" onclick="startTimer()"
+                class="py-2.5 px-3 rounded-xl bg-[#10B981] hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold transition-colors cursor-pointer ${timerState.isRunning ? 'opacity-50 pointer-events-none' : ''}">
+                Mulai Sesi
+              </button>
+              <button type="button" id="timerPauseBtn" onclick="pauseTimer()"
+                class="py-2.5 px-3 rounded-xl bg-slate-200 dark:bg-[#0F172A] hover:bg-slate-300 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 border border-[#E2E8F0] dark:border-[#334155] text-xs sm:text-sm font-semibold transition-colors cursor-pointer">
+                Jeda
+              </button>
+            </div>
+
+            <div class="flex items-center justify-between gap-2 mb-3">
+              <button type="button" onclick="resetTimer()" class="text-xs text-slate-500 hover:text-slate-800 dark:hover:text-white underline cursor-pointer">
+                Reset Timer
+              </button>
+              <button type="button" onclick="simulateTimerComplete()" class="text-xs font-medium text-[#6366F1] hover:underline cursor-pointer">
+                Simulasi Selesai ✓
+              </button>
+            </div>
+          </div>
+
+          <!-- Dropdown Sub-bab Aktif -->
+          <div>
+            <label for="activeSubtopicSelect" class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">Sub-bab aktif tertaut:</label>
+            <select id="activeSubtopicSelect" onchange="changeActiveSubtopic(this.value)"
+              class="w-full px-3 py-2 text-xs sm:text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] text-slate-800 dark:text-slate-200 focus:outline-none focus:border-[#6366F1]">
+              ${subtopicOptions}
+            </select>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderHabitTrackerCardHTML() {
+      const doneCount = state.habits.filter(h => h.completed).length;
+      const habitsHTML = state.habits.map(h => `
+        <div class="group flex items-center justify-between gap-2 py-2 px-2.5 rounded-xl bg-slate-50 dark:bg-[#0F172A]/75 border border-[#E2E8F0] dark:border-[#334155]">
+          <label class="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+            <input type="checkbox" ${h.completed ? 'checked' : ''} onchange="toggleHabit('${h.id}')"
+              class="w-4 h-4 rounded accent-[#10B981] cursor-pointer shrink-0" />
+            <span class="text-xs sm:text-sm truncate ${h.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-200'}">
+              ${escapeHTML(h.title)}
+            </span>
+          </label>
+          <button type="button" onclick="deleteHabit('${h.id}')" title="Hapus target"
+            class="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 p-1 transition-opacity cursor-pointer">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      `).join('');
+
+      return `
+        <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5 flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-1">
+              <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Tracker Harian</h2>
+              <button type="button" onclick="openAddHabitModal()" title="Tambah Target Harian"
+                class="p-1.5 rounded-lg bg-indigo-500/10 text-[#6366F1] hover:bg-indigo-500/20 transition-colors cursor-pointer">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+              </button>
+            </div>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mb-4">
+              Checklist Kebiasaan (${doneCount}/${state.habits.length} selesai)
+            </p>
+
+            <div class="space-y-2.5">
+              ${habitsHTML || '<p class="text-xs text-slate-400 text-center py-6">Belum ada target harian.</p>'}
+            </div>
+          </div>
+
+          <p class="text-[11px] text-slate-400 mt-4 pt-3 border-t border-[#E2E8F0] dark:border-[#334155]">
+            Otomatis di-reset setiap pergantian hari pukul 00:00.
+          </p>
+        </div>
+      `;
+    }
+
+    function renderWeeklyChartCardHTML() {
+      return `
+        <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-4">
+            <div>
+              <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Diagram Durasi Belajar</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Visualisasi durasi belajar mingguan (menit/hari)</p>
+            </div>
+            <span class="font-mono text-xs font-semibold text-[#6366F1] bg-indigo-500/10 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+              Sen – Min
+            </span>
+          </div>
+          <div class="relative w-full h-56 sm:h-64">
+            <canvas id="weeklyDurationChart"></canvas>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderWeeklyChart() {
+      const canvas = document.getElementById('weeklyDurationChart');
+      if (!canvas || typeof Chart === 'undefined') return;
+
+      if (weeklyChartInstance) {
+        weeklyChartInstance.destroy();
+      }
+
+      const isDark = state.theme === 'dark';
+      const gridColor = isDark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(100, 116, 139, 0.14)';
+      const tickColor = isDark ? '#94A3B8' : '#64748B';
+
+      const ctx = canvas.getContext('2d');
+      const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+      gradient.addColorStop(0, 'rgba(99, 102, 241, 0.35)');
+      gradient.addColorStop(1, 'rgba(16, 185, 129, 0.02)');
+
+      weeklyChartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'],
+          datasets: [{
+            label: 'Durasi Belajar (Menit)',
+            data: state.weeklyMinutes,
+            borderColor: '#6366F1',
+            backgroundColor: gradient,
+            borderWidth: 3,
+            tension: 0.42,
+            fill: true,
+            pointBackgroundColor: '#10B981',
+            pointBorderColor: isDark ? '#1E293B' : '#FFFFFF',
+            pointBorderWidth: 2,
+            pointRadius: 5,
+            pointHoverRadius: 7
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: isDark ? '#0F172A' : '#1E293B',
+              titleColor: '#F8FAFC',
+              bodyColor: '#E2E8F0',
+              padding: 10,
+              cornerRadius: 10,
+              callbacks: {
+                label: (context) => ` ${context.parsed.y} menit (${formatMinutesToHoursText(context.parsed.y)})`
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: tickColor, font: { family: 'Plus Jakarta Sans', size: 12 } }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: gridColor },
+              ticks: {
+                color: tickColor,
+                font: { family: 'JetBrains Mono', size: 11 },
+                callback: (val) => `${val}m`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // View 1: Bento Grid Dashboard Utama
+    function renderDashboardView() {
+      const overallPct = getOverallProgress();
+      const modulesHTML = state.modules.map(m => renderModuleCardHTML(m)).join('');
+
+      return `
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          
+          <!-- KOLOM KIRI: PROGRES KURIKULUM SAYA (5 Kolom) -->
+          <section class="lg:col-span-5 bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white">Progres Kurikulum Saya</h2>
+                <p class="text-xs text-slate-500 dark:text-slate-400">Target silabus & manajemen waktu modul</p>
+              </div>
+              <div class="relative">
+                <button type="button" onclick="toggleActionMenu(event, 'curriculumMenuDropdown')" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer">
+                  <i data-lucide="more-vertical" class="w-4 h-4"></i>
+                </button>
+                <div id="curriculumMenuDropdown" class="action-dropdown-menu hidden absolute right-0 mt-1 w-48 rounded-xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] shadow-xl py-1.5 z-30 text-xs">
+                  <button type="button" onclick="openAddModuleModal()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="folder-plus" class="w-3.5 h-3.5 text-[#6366F1]"></i> Tambah Modul Baru
+                  </button>
+                  <button type="button" onclick="resetAllSubtopics()" class="w-full text-left px-3.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5 text-amber-500"></i> Reset Semua Centang
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Overall Progress Bar + Tombol Lanjutkan -->
+            <div class="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] mb-4">
+              <div class="flex-1">
+                <div class="flex justify-between text-xs font-semibold mb-1.5">
+                  <span class="text-slate-500 dark:text-slate-400">Capaian Total</span>
+                  <span class="font-mono text-[#6366F1]">${overallPct}%</span>
+                </div>
+                <div class="w-full h-2.5 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+                  <div class="progress-fill h-full rounded-full bg-gradient-to-r from-[#6366F1] to-indigo-400" style="width: ${overallPct}%"></div>
+                </div>
+              </div>
+              <button type="button" onclick="handleQuickResume()"
+                class="shrink-0 px-3.5 py-2 rounded-xl bg-[#10B981] hover:bg-emerald-500 text-white text-xs font-semibold transition-colors cursor-pointer">
+                Lanjutkan
+              </button>
+            </div>
+
+            <!-- Daftar Kartu Modul -->
+            <div class="space-y-4">
+              ${modulesHTML || `
+                <div class="text-center py-8">
+                  <p class="text-sm text-slate-500 mb-3">Belum ada modul kurikulum.</p>
+                  <button type="button" onclick="openAddModuleModal()" class="px-4 py-2 rounded-xl bg-[#6366F1] text-white text-xs font-semibold cursor-pointer">+ Buat Modul Pertama</button>
+                </div>
+              `}
+            </div>
+          </section>
+
+          <!-- KOLOM KANAN: TIMER, TRACKER HARIAN, & DIAGRAM GARIS (7 Kolom) -->
+          <div class="lg:col-span-7 space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              ${renderFocusTimerCardHTML(false)}
+              ${renderHabitTrackerCardHTML()}
+            </div>
+            ${renderWeeklyChartCardHTML()}
+          </div>
+
+        </div>
+      `;
+    }
+
+    // View 2: Tab Kurikulum Saya (Full Grid)
+    function renderKurikulumView() {
+      const modulesHTML = state.modules.map(m => renderModuleCardHTML(m)).join('');
+      return `
+        <div class="space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5">
+            <div>
+              <h2 class="text-lg font-bold text-slate-900 dark:text-white">Semua Modul Pembelajaran (${state.modules.length})</h2>
+              <p class="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Kelola silabus, target deadline, kejar target harian, dan catatan kendala tiap modul.</p>
+            </div>
+            <button type="button" onclick="openAddModuleModal()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#6366F1] hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold cursor-pointer self-start sm:self-auto">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Tambah Modul Baru</span>
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            ${modulesHTML}
+          </div>
+        </div>
+      `;
+    }
+
+    // View 3: Tab Fokus Timer (Mode Fokus Penuh)
+    function renderTimerView() {
+      return `
+        <div class="py-4">
+          ${renderFocusTimerCardHTML(true)}
+        </div>
+      `;
+    }
+
+    // View 4: Tab Statistik & Riwayat Sesi
+    function renderStatistikView() {
+      const totalWeeklyMins = state.weeklyMinutes.reduce((a, b) => a + b, 0);
+      const avgDailyMins = Math.round(totalWeeklyMins / 7);
+
+      const moduleBreakdownHTML = state.modules.map(m => {
+        const mins = m.loggedMinutes || 0;
+        const sharePct = state.totalMinutes > 0 ? Math.min(100, Math.round((mins / state.totalMinutes) * 100)) : 0;
+        return `
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-xs sm:text-sm">
+              <span class="font-medium text-slate-800 dark:text-slate-200">${escapeHTML(m.title)}</span>
+              <span class="font-mono font-semibold text-[#6366F1]">${formatMinutesToHoursText(mins)} (${sharePct}%)</span>
+            </div>
+            <div class="w-full h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+              <div class="progress-fill h-full rounded-full bg-[#6366F1]" style="width: ${sharePct}%"></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const logsHTML = state.sessionLogs.map(log => `
+        <div class="flex items-center justify-between gap-3 py-3 border-b border-[#E2E8F0] dark:border-[#334155] last:border-0">
+          <div class="min-w-0">
+            <p class="text-xs sm:text-sm font-semibold text-slate-900 dark:text-white truncate">${escapeHTML(log.subtopicTitle)}</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">
+              ${escapeHTML(log.moduleTitle)} • ${formatDateIndo(log.date)} ${log.time ? `(${log.time})` : ''}
+            </p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="px-2 py-0.5 rounded-md text-[11px] font-medium ${
+              log.type === 'Pomodoro' ? 'bg-indigo-500/15 text-[#6366F1]' : 'bg-emerald-500/15 text-[#10B981]'
+            }">${escapeHTML(log.type)}</span>
+            <span class="font-mono text-xs sm:text-sm font-bold text-slate-900 dark:text-white">+${log.minutes}m</span>
+          </div>
+        </div>
+      `).join('');
+
+      return `
+        <div class="space-y-6">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5">
+              <p class="text-xs text-slate-500 dark:text-slate-400">Total Akumulasi Belajar</p>
+              <p class="font-mono text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">${formatMinutesToHoursText(state.totalMinutes)}</p>
+            </div>
+            <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5">
+              <p class="text-xs text-slate-500 dark:text-slate-400">Total Minggu Ini</p>
+              <p class="font-mono text-xl sm:text-2xl font-bold text-[#6366F1] mt-1">${formatMinutesToHoursText(totalWeeklyMins)}</p>
+            </div>
+            <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5">
+              <p class="text-xs text-slate-500 dark:text-slate-400">Rata-rata Harian Minggu Ini</p>
+              <p class="font-mono text-xl sm:text-2xl font-bold text-[#10B981] mt-1">${avgDailyMins} Menit/Hari</p>
+            </div>
+          </div>
+
+          ${renderWeeklyChartCardHTML()}
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5">
+              <h3 class="text-base font-bold text-slate-900 dark:text-white mb-4">Distribusi Waktu per Modul</h3>
+              <div class="space-y-4">${moduleBreakdownHTML}</div>
+            </div>
+
+            <div class="bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-5">
+              <h3 class="text-base font-bold text-slate-900 dark:text-white mb-2">Riwayat Sesi Belajar Terbaru</h3>
+              <div class="max-h-72 overflow-y-auto">${logsHTML || '<p class="text-xs text-slate-400 py-4">Belum ada riwayat sesi.</p>'}</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // View 5: Tab Pengaturan
+    function renderPengaturanView() {
+      return `
+        <div class="max-w-2xl bg-white dark:bg-[#1E293B] border border-[#E2E8F0] dark:border-[#334155] rounded-2xl p-6 space-y-6">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900 dark:text-white">Preferensi Pengguna & Timer</h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400">Sesuaikan profil belajar dan durasi standar Pomodoro Anda.</p>
+          </div>
+
+          <form onsubmit="saveSettings(event)" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Nama Tampilan</label>
+              <input type="text" id="settingsUserName" value="${escapeHTML(state.userName)}" required
+                class="w-full px-3.5 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Durasi Fokus Default (Menit)</label>
+              <input type="number" id="settingsDefaultFocus" min="5" max="180" value="${state.defaultFocusMinutes}" required
+                class="w-full px-3.5 py-2.5 font-mono text-sm rounded-xl bg-slate-50 dark:bg-[#0F172A] border border-[#E2E8F0] dark:border-[#334155] focus:outline-none focus:border-[#6366F1]" />
+            </div>
+
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-[#6366F1] hover:bg-indigo-500 text-white text-xs sm:text-sm font-semibold cursor-pointer">
+              Simpan Pengaturan
+            </button>
+          </form>
+
+          <div class="pt-5 border-t border-[#E2E8F0] dark:border-[#334155] flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white">Reset Data Aplikasi</h3>
+              <p class="text-xs text-slate-500 dark:text-slate-400">Kembalikan data ke contoh awal atau mulai dari 0 jam belajar.</p>
+            </div>
+            <div class="flex gap-2">
+              <button type="button" onclick="resetToZeroData()" class="px-3.5 py-2 rounded-xl border border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 text-xs font-semibold cursor-pointer">
+                Mulai dari 0 Jam
+              </button>
+              <button type="button" onclick="resetDemoData()" class="px-3.5 py-2 rounded-xl border border-rose-500/40 text-rose-500 hover:bg-rose-500/10 text-xs font-semibold cursor-pointer">
+                Reset Demo
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function saveSettings(e) {
+      e.preventDefault();
+      const newName = document.getElementById('settingsUserName').value.trim() || 'Pelajar';
+      const newFocus = Math.max(5, Math.min(180, parseInt(document.getElementById('settingsDefaultFocus').value, 10) || 25));
+
+      state.userName = newName;
+      state.defaultFocusMinutes = newFocus;
+      state.currentFocusMinutes = newFocus;
+      pauseTimer();
+      timerState.mode = 'focus';
+      timerState.durationSeconds = newFocus * 60;
+      timerState.remainingSeconds = newFocus * 60;
+
+      saveState();
+      renderApp();
+      showToast('Pengaturan berhasil disimpan!', 'success');
+    }
+
+    function resetToZeroData() {
+      pauseTimer();
+      state.totalMinutes = 0;
+      state.streak = 0;
+      state.weeklyMinutes = [0, 0, 0, 0, 0, 0, 0];
+      state.dailyMinutesMap = {};
+      state.sessionLogs = [];
+      state.modules.forEach(m => {
+        m.loggedMinutes = 0;
+        m.targetSpentMinutes = 0;
+      });
+      saveState();
+      renderApp();
+      showToast('Akumulasi jam belajar diatur ulang ke 0 Menit.', 'info');
+    }
+
+    function resetDemoData() {
+      pauseTimer();
+      localStorage.removeItem(STORAGE_KEY);
+      state = loadState();
+      timerState.mode = 'focus';
+      timerState.durationSeconds = state.defaultFocusMinutes * 60;
+      timerState.remainingSeconds = state.defaultFocusMinutes * 60;
+      renderApp();
+      showToast('Data demo awal dipulihkan.', 'info');
+    }
+
+    // =========================================================================
+    // 10. RENDER UTAMA & INISIALISASI
+    // =========================================================================
+    function renderApp() {
+      // Update Header
+      const nameEl = document.getElementById('headerUserName');
+      const streakEl = document.getElementById('headerStreak');
+      const totalEl = document.getElementById('headerTotalHours');
+      if (nameEl) nameEl.textContent = state.userName;
+      if (streakEl) streakEl.textContent = state.streak;
+      if (totalEl) totalEl.textContent = formatMinutesToHoursText(state.totalMinutes);
+
+      // Update Highlight Navigasi Aktif
+      document.querySelectorAll('.nav-item').forEach(btn => {
+        const isActive = btn.getAttribute('data-nav') === activeTab;
+        if (isActive) {
+          btn.className = 'nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold bg-[#6366F1]/15 text-[#6366F1] transition-colors cursor-pointer';
+        } else {
+          btn.className = 'nav-item w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white transition-colors cursor-pointer';
+        }
+      });
+
+      // Render Halaman Aktif
+      const mainEl = document.getElementById('mainContent');
+      if (!mainEl) return;
+
+      if (activeTab === 'dashboard') {
+        mainEl.innerHTML = renderDashboardView();
+      } else if (activeTab === 'kurikulum') {
+        mainEl.innerHTML = renderKurikulumView();
+      } else if (activeTab === 'timer') {
+        mainEl.innerHTML = renderTimerView();
+      } else if (activeTab === 'statistik') {
+        mainEl.innerHTML = renderStatistikView();
+      } else if (activeTab === 'pengaturan') {
+        mainEl.innerHTML = renderPengaturanView();
+      }
+
+      lucide.createIcons();
+      updateTimerDisplayUI();
+
+      if (activeTab === 'dashboard' || activeTab === 'statistik') {
+        renderWeeklyChart();
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      applyTheme();
+      updateLiveClock();
+      setInterval(updateLiveClock, 1000);
+      renderApp();
+    });
+  </script>
+</body>
+</html>
